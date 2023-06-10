@@ -1,41 +1,48 @@
 import numpy as np
-import pandas as pd
-from factor_analyzer import FactorAnalyzer
+from sklearn.datasets import load_iris
+from sklearn.decomposition import PCA
 
-# Загрузка данных
-data = pd.read_csv('rosstat.csv', delimiter=',')
-# print(data)
+def factor_analysis(data, num_factors):
+    # Вычисление ковариационной матрицы
+    cov_matrix = np.cov(data, rowvar=False)
 
-# Выбор столбцов без значений null
-st = ['Численность населения', 'Заболевание алкоголизмом', 'Заболевание наркоманией', 'Реальные доходы', 'Бедность', 'Образование детей', 'ВВП']
+    # Вычисление собственных значений и собственных векторов
+    eigenvalues, eigenvectors = np.linalg.eig(cov_matrix)
 
-# Создание объекта для факторного анализа
-factor_analysis = FactorAnalyzer(n_factors=4, rotation='quartimax')
+    # Сортировка собственных значений и собственных векторов в порядке убывания
+    sorted_indices = np.argsort(eigenvalues)[::-1]
+    sorted_eigenvalues = eigenvalues[sorted_indices]
+    sorted_eigenvectors = eigenvectors[:, sorted_indices]
 
-# Применение модели факторного анализа к данным
-factor_analysis.fit(data)
+    # Выбор первых num_factors собственных векторов
+    factor_loadings = sorted_eigenvectors[:, :num_factors]
 
+    # Вычисление объясненной дисперсии
+    explained_variance = sorted_eigenvalues[:num_factors] / np.sum(sorted_eigenvalues)
 
-# Получение факторных нагрузок          
-factor_loadings = factor_analysis.loadings_
-factor_variances = factor_analysis.get_factor_variance()
+    return factor_loadings, explained_variance
 
-# Округление факторных нагрузок до 6 знаков после запятой
-rounded_loadings = [[round(val, 6) for val in loadings] for loadings in factor_loadings]
+# Загрузка набора данных "Ирисы Фишера"
+iris = load_iris()
+X = iris.data
 
-# Вывод округленных факторных нагрузок
-print("Факторные нагрузки:")
-for i, loadings in enumerate(rounded_loadings):
-    row_formatted = [f"{value:<12}" for value in loadings]
-    # print(f'{st[i]:<12}' + " ".join(row_formatted))
-    print(f'{st[i]:<30}' + ",".join(row_formatted))
+factors = 2
 
-# Округление дисперсий факторов до 6 знаков после запятой
-rounded_variances = tuple(np.round(val, 6) for val in factor_variances)
+# Вызов функции факторного анализа для 2 факторов
+factor_loadings, explained_variance = factor_analysis(X, num_factors=factors)
 
-# Вывод округленных дисперсий факторов
-print("\nДисперсии факторов:")
-st = ['Дисперсия', 'Пропорциональная дисперсия', 'Накопленная дисперсия']
-for i, loadings in enumerate(rounded_variances):
-    row_formatted = [f"{value:<12}" for value in loadings]
-    print(f'{st[i]:<30}' + ',' + ",".join(row_formatted))
+# Вывод факторных нагрузок и объясненной дисперсии
+print("Факторные нагрузки (без использования библиотеки):")
+print(factor_loadings)
+print("Объясненная дисперсия (без использования библиотеки):")
+print(explained_variance)
+
+# Применение PCA для редукции размерности до двух факторов
+pca = PCA(n_components=factors)
+X_pca = pca.fit_transform(X)
+
+# Вывод факторных нагрузок и объясненной дисперсии с использованием PCA
+print("Факторные нагрузки (с использованием PCA):")
+print(pca.components_.T)
+print("Объясненная дисперсия (с использованием PCA):")
+print(pca.explained_variance_ratio_)
